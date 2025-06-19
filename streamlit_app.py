@@ -84,7 +84,6 @@ with col1:
 with col2:
     st.subheader("🖋️ SQL Query")
 
-    # embed the Ace editor with a built-in Run button
     response = code_editor(
         st.session_state.query,
         lang="sql",
@@ -95,10 +94,11 @@ with col2:
             "commands": ["submit"],
             "primary": True,
             "style": {"bottom": "0.5rem", "right": "0.5rem"}
-        }]
+        }],
+        response_mode="submit",
+        key="sql_editor"
     )
 
-    # when the user clicks “Run Query”, response['type']=="submit"
     if response["type"] == "submit":
         sql = response["text"].strip()
         if not sql:
@@ -112,7 +112,6 @@ with col2:
                 st.session_state.df    = pd.DataFrame()
                 st.session_state.error = str(e)
 
-    # show error or results
     if st.session_state.error:
         st.error(f"Query failed: {st.session_state.error}")
     elif not st.session_state.df.empty:

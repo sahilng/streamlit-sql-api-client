@@ -94,9 +94,7 @@ with col2:
             "commands": ["submit"],
             "primary": True,
             "style": {"bottom": "0.5rem", "right": "0.5rem"}
-        }],
-        response_mode="submit",
-        key="sql_editor"
+        }]
     )
 
     if response["type"] == "submit":

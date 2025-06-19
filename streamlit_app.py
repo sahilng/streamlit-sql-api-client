@@ -1,5 +1,3 @@
-# streamlit_app.py
-
 import streamlit as st
 import requests
 import pandas as pd
@@ -27,15 +25,23 @@ def run_sql(sql: str) -> pd.DataFrame:
     resp.raise_for_status()
     return pd.DataFrame(resp.json().get("results", []))
 
-# Initialize the SQL in session_state
+# Initialize session state
 if "query" not in st.session_state:
     st.session_state["query"] = ""
+if "df" not in st.session_state:
+    st.session_state["df"] = pd.DataFrame()
+if "error" not in st.session_state:
+    st.session_state["error"] = None
 
-# When you click a table, seed the query box
-def select_table(catalog: str, schema: str, table: str):
-    st.session_state["query"] = (
-        f"SELECT * FROM {catalog}.{schema}.{table} LIMIT 10"
-    )
+def select_and_run(catalog: str, schema: str, table: str):
+    q = f"SELECT * FROM {catalog}.{schema}.{table} LIMIT 10"
+    st.session_state["query"] = q
+    try:
+        st.session_state["df"] = run_sql(q)
+        st.session_state["error"] = None
+    except Exception as e:
+        st.session_state["df"] = pd.DataFrame()
+        st.session_state["error"] = str(e)
 
 # Two-column layout
 col1, col2 = st.columns([1, 2])
@@ -60,34 +66,38 @@ with col1:
     if tables_df.empty:
         st.info("No tables found.")
     else:
-        # 1️⃣ Top level: each attached DB (catalog)
         for catalog, cat_group in tables_df.groupby("table_catalog"):
-            st.markdown(f"### {catalog}")  # header, not an expander
-            # 2️⃣ Next: each schema gets its own expander
+            st.markdown(f"### {catalog}")
             for schema, schema_group in cat_group.groupby("table_schema"):
                 with st.expander(schema, expanded=False):
-                    # 3️⃣ Then each table as a button
                     for tbl in schema_group["table_name"]:
-                        if st.button(
+                        st.button(
                             tbl,
                             key=f"{catalog}.{schema}.{tbl}",
-                            on_click=select_table,
+                            on_click=select_and_run,
                             args=(catalog, schema, tbl),
-                        ):
-                            pass
+                        )
 
 # ─── Column 2: SQL Client ───────────────────────────────────────────────────────
 with col2:
     st.subheader("🖋️ SQL Query")
     sql = st.text_area("SQL", value=st.session_state["query"], height=180)
 
+    # Manual run as before
     if st.button("Run Query"):
         if not sql.strip():
             st.error("Enter a SQL statement first.")
         else:
             try:
-                df = run_sql(sql)
-                st.success(f"Returned {len(df)} row(s).")
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.session_state["df"] = run_sql(sql)
+                st.session_state["error"] = None
             except Exception as e:
-                st.error(f"Query failed: {e}")
+                st.session_state["df"] = pd.DataFrame()
+                st.session_state["error"] = str(e)
+
+    # Show error or results
+    if st.session_state["error"]:
+        st.error(f"Query failed: {st.session_state['error']}")
+    elif not st.session_state["df"].empty:
+        st.success(f"Returned {len(st.session_state['df'])} row(s).")
+        st.dataframe(st.session_state["df"], use_container_width=True, hide_index=True)

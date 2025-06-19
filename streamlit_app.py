@@ -39,7 +39,9 @@ st.session_state.setdefault("error", None)
 
 def select_and_run(catalog: str, schema: str, table: str):
     q = f"SELECT * FROM {catalog}.{schema}.{table} LIMIT 10"
-    st.session_state.query = q
+    # update both your own query and the editor’s
+    st.session_state.query      = q
+    st.session_state.ace_editor = q     # ← push into the ACE component
     try:
         st.session_state.df    = run_sql(q)
         st.session_state.error = None
@@ -84,7 +86,9 @@ with col1:
 with col2:
     st.subheader("🖋️ SQL Query")
 
-    # — streamlit-ace editor —
+    # … your imports and connection code …
+
+    # turn off continuous updates
     query = st_ace(
         value=st.session_state.query,
         language="sql",
@@ -93,23 +97,22 @@ with col2:
         key="ace_editor",
         placeholder="Write your SQL here…",
         show_gutter=False,
-        auto_update=True
+        auto_update=False,     # <-- only update on Ctrl+Enter/Cmd+Enter
     )
 
-    # — Run button —
-    if st.button("Run Query", key="run_from_ace"):
-        if not query.strip():
-            st.error("Enter a SQL statement first.")
-        else:
-            st.session_state.query = query
-            try:
+    # when the user “applies” the edit, st_ace returns the new text;
+    # compare it to the last-saved query in session_state:
+    if query != st.session_state.get("query"):
+        st.session_state.query = query
+        try:
+            with st.spinner("Running query…"):
                 st.session_state.df    = run_sql(query)
                 st.session_state.error = None
-            except Exception as e:
-                st.session_state.df    = pd.DataFrame()
-                st.session_state.error = str(e)
+        except Exception as e:
+            st.session_state.df    = pd.DataFrame()
+            st.session_state.error = str(e)
 
-    # — Results / Errors —
+    # then downstream, show errors or your dataframe as before…
     if st.session_state.error:
         st.error(f"Query failed: {st.session_state.error}")
     elif not st.session_state.df.empty:

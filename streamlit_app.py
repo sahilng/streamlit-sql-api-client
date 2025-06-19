@@ -1,4 +1,5 @@
 import streamlit as st
+from code_editor import code_editor
 import requests
 import pandas as pd
 
@@ -25,37 +26,30 @@ def run_sql(sql: str) -> pd.DataFrame:
     resp.raise_for_status()
     payload = resp.json()
     rows    = payload.get("results", [])
-    cols    = payload.get("columns")      # e.g. ["d","count_star()"]
+    cols    = payload.get("columns")
     df      = pd.DataFrame(rows)
-
     if cols:
-        # Re-order (and drop any extra keys) exactly as the API declared
         df = df[cols]
-
     return df
 
 # Initialize session state
-if "query" not in st.session_state:
-    st.session_state["query"] = ""
-if "df" not in st.session_state:
-    st.session_state["df"] = pd.DataFrame()
-if "error" not in st.session_state:
-    st.session_state["error"] = None
+st.session_state.setdefault("query", "")
+st.session_state.setdefault("df", pd.DataFrame())
+st.session_state.setdefault("error", None)
 
 def select_and_run(catalog: str, schema: str, table: str):
     q = f"SELECT * FROM {catalog}.{schema}.{table} LIMIT 10"
-    st.session_state["query"] = q
+    st.session_state.query = q
     try:
-        st.session_state["df"] = run_sql(q)
-        st.session_state["error"] = None
+        st.session_state.df    = run_sql(q)
+        st.session_state.error = None
     except Exception as e:
-        st.session_state["df"] = pd.DataFrame()
-        st.session_state["error"] = str(e)
+        st.session_state.df    = pd.DataFrame()
+        st.session_state.error = str(e)
 
-# Two-column layout
+# ─── Layout: two columns ─────────────────────────────────────────────────────────
 col1, col2 = st.columns([1, 2])
 
-# ─── Column 1: Catalog ─────────────────────────────────────────────────────────
 with col1:
     st.subheader("📚 Catalog")
     try:
@@ -87,26 +81,40 @@ with col1:
                             args=(catalog, schema, tbl),
                         )
 
-# ─── Column 2: SQL Client ───────────────────────────────────────────────────────
 with col2:
     st.subheader("🖋️ SQL Query")
-    sql = st.text_area("SQL", value=st.session_state["query"], height=180)
 
-    # Manual run as before
-    if st.button("Run Query"):
-        if not sql.strip():
+    # embed the Ace editor with a built-in Run button
+    response = code_editor(
+        st.session_state.query,
+        lang="sql",
+        height=200,
+        buttons=[{
+            "name": "Run Query",
+            "feather": "Play",
+            "commands": ["submit"],
+            "primary": True,
+            "style": {"bottom": "0.5rem", "right": "0.5rem"}
+        }]
+    )
+
+    # when the user clicks “Run Query”, response['type']=="submit"
+    if response["type"] == "submit":
+        sql = response["text"].strip()
+        if not sql:
             st.error("Enter a SQL statement first.")
         else:
+            st.session_state.query = sql
             try:
-                st.session_state["df"] = run_sql(sql)
-                st.session_state["error"] = None
+                st.session_state.df    = run_sql(sql)
+                st.session_state.error = None
             except Exception as e:
-                st.session_state["df"] = pd.DataFrame()
-                st.session_state["error"] = str(e)
+                st.session_state.df    = pd.DataFrame()
+                st.session_state.error = str(e)
 
-    # Show error or results
-    if st.session_state["error"]:
-        st.error(f"Query failed: {st.session_state['error']}")
-    elif not st.session_state["df"].empty:
-        st.success(f"Returned {len(st.session_state['df'])} row(s).")
-        st.dataframe(st.session_state["df"], use_container_width=True, hide_index=True)
+    # show error or results
+    if st.session_state.error:
+        st.error(f"Query failed: {st.session_state.error}")
+    elif not st.session_state.df.empty:
+        st.success(f"Returned {len(st.session_state.df)} row(s).")
+        st.dataframe(st.session_state.df, use_container_width=True, hide_index=True)

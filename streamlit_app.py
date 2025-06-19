@@ -89,7 +89,7 @@ with col2:
         value=st.session_state.query,
         language="sql",
         theme="nord_dark",
-        height=100,
+        height=150,
         key="ace_editor",
         placeholder="Write your SQL here…",
         show_gutter=False,

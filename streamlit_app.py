@@ -88,10 +88,12 @@ with col2:
     query = st_ace(
         value=st.session_state.query,
         language="sql",
-        theme="ambiance",
+        theme="nord_dark",
         height=300,
         key="ace_editor",
-        placeholder="Write your SQL here…"
+        placeholder="Write your SQL here…",
+        show_gutter=False,
+        auto_update=True
     )
 
     # — Run button —

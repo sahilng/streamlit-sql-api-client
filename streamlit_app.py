@@ -87,7 +87,7 @@ with col2:
     response = code_editor(
         st.session_state.query,
         lang="sql",
-        height=[10,50],
+        height=[1,10],
         buttons=[{
             "name": "Run Query",
             "feather": "Play",

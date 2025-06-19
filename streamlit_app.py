@@ -1,5 +1,5 @@
 import streamlit as st
-from code_editor import code_editor
+from streamlit_ace import st_ace
 import requests
 import pandas as pd
 
@@ -72,7 +72,7 @@ with col1:
         for catalog, cat_group in tables_df.groupby("table_catalog"):
             st.markdown(f"### {catalog}")
             for schema, schema_group in cat_group.groupby("table_schema"):
-                with st.expander(schema, expanded=False):
+                with st.expander(schema):
                     for tbl in schema_group["table_name"]:
                         st.button(
                             tbl,
@@ -84,32 +84,30 @@ with col1:
 with col2:
     st.subheader("🖋️ SQL Query")
 
-    response = code_editor(
-        st.session_state.query,
-        lang="sql",
-        height=[1,10],
-        buttons=[{
-            "name": "Run Query",
-            "feather": "Play",
-            "commands": ["submit"],
-            "primary": True,
-            "style": {"bottom": "0.5rem", "right": "0.5rem"}
-        }]
+    # — streamlit-ace editor —
+    query = st_ace(
+        value=st.session_state.query,
+        language="sql",
+        theme="ambiance",
+        height=300,
+        key="ace_editor",
+        placeholder="Write your SQL here…"
     )
 
-    if response["type"] == "submit":
-        sql = response["text"].strip()
-        if not sql:
+    # — Run button —
+    if st.button("Run Query", key="run_from_ace"):
+        if not query.strip():
             st.error("Enter a SQL statement first.")
         else:
-            st.session_state.query = sql
+            st.session_state.query = query
             try:
-                st.session_state.df    = run_sql(sql)
+                st.session_state.df    = run_sql(query)
                 st.session_state.error = None
             except Exception as e:
                 st.session_state.df    = pd.DataFrame()
                 st.session_state.error = str(e)
 
+    # — Results / Errors —
     if st.session_state.error:
         st.error(f"Query failed: {st.session_state.error}")
     elif not st.session_state.df.empty:

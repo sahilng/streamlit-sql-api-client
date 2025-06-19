@@ -23,7 +23,16 @@ def run_sql(sql: str) -> pd.DataFrame:
         timeout=30,
     )
     resp.raise_for_status()
-    return pd.DataFrame(resp.json().get("results", []))
+    payload = resp.json()
+    rows    = payload.get("results", [])
+    cols    = payload.get("columns")      # e.g. ["d","count_star()"]
+    df      = pd.DataFrame(rows)
+
+    if cols:
+        # Re-order (and drop any extra keys) exactly as the API declared
+        df = df[cols]
+
+    return df
 
 # Initialize session state
 if "query" not in st.session_state:

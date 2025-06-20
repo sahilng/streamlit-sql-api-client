@@ -1,6 +1,6 @@
 # DuckDB SQL Client
 
-A simple Streamlit-based SQL client for querying a DuckDB HTTP API.
+A Streamlit-based SQL client for querying a DuckDB HTTP API.
 
 ## Repository Structure
 
